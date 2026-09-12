@@ -67,6 +67,37 @@ curl "http://localhost:8080/api/v1/shows/search?q=girls"
 - `summary` se entrega tal como lo publica TVmaze, incluyendo sus etiquetas HTML.
 - Una busqueda sin coincidencias devuelve `200 OK` con un arreglo vacio.
 
+### Obtener un show por id
+
+```
+GET /api/v1/shows/{show_id}
+```
+
+Consulta `https://api.tvmaze.com/shows/{show_id}` y devuelve el objeto show completo.
+
+```bash
+curl "http://localhost:8080/api/v1/shows/1"
+```
+
+```json
+{
+  "id": 1,
+  "url": "https://www.tvmaze.com/shows/1/under-the-dome",
+  "name": "Under the Dome",
+  "type": "Scripted",
+  "language": "English",
+  "genres": ["Drama", "Science-Fiction", "Thriller"],
+  "status": "Ended",
+  "runtime": 60,
+  "schedule": { "time": "22:00", "days": ["Thursday"] },
+  "rating": { "average": 6.6 },
+  "network": { "id": 2, "name": "CBS", "country": { "name": "United States", "code": "US", "timezone": "America/New_York" } },
+  "externals": { "tvrage": 25988, "thetvdb": 264492, "imdb": "tt1553656" },
+  "summary": "<p><b>Under the Dome</b> is the story of a small town...</p>",
+  "_links": { "self": { "href": "https://api.tvmaze.com/shows/1" } }
+}
+```
+
 ## Manejo de errores
 
 Todos los errores comparten el mismo cuerpo:
@@ -83,7 +114,8 @@ Todos los errores comparten el mismo cuerpo:
 
 | Codigo | Cuando ocurre |
 | ------ | ------------- |
-| `400 Bad Request` | Criterio de busqueda ausente o vacio. |
+| `400 Bad Request` | Criterio de busqueda ausente o vacio; id de show no numerico o no positivo. |
+| `404 Not Found` | TVmaze no conoce el `show_id` solicitado. |
 | `429 Too Many Requests` | TVmaze rechazo la peticion por su limite de solicitudes. |
 | `502 Bad Gateway` | TVmaze respondio con error 5xx, agoto el timeout o devolvio un cuerpo invalido. |
 | `500 Internal Server Error` | Falla inesperada del middleware. |

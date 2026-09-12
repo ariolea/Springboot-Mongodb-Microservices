@@ -1,6 +1,7 @@
 package com.tvmaze.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -8,6 +9,8 @@ import static org.mockito.Mockito.when;
 import com.tvmaze.TvMazeShowFixture;
 import com.tvmaze.client.TvMazeClient;
 import com.tvmaze.client.dto.TvMazeSearchResult;
+import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.Arrays;
 import java.util.List;
@@ -66,5 +69,23 @@ class ShowServiceTest {
                         new TvMazeSearchResult(0.1, null)));
 
         assertThat(showService.searchShows("dome")).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("La consulta por id devuelve el show completo sin transformarlo")
+    void getShowByIdReturnsCompleteShow() {
+        TvMazeShow expected = TvMazeShowFixture.underTheDome();
+        when(tvMazeClient.findShowById(1L)).thenReturn(expected);
+
+        assertThat(showService.getShowById(1L)).isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("Un show inexistente propaga ShowNotFoundException")
+    void getShowByIdPropagatesNotFound() {
+        when(tvMazeClient.findShowById(999999L)).thenThrow(new ShowNotFoundException(999999L));
+
+        assertThatThrownBy(() -> showService.getShowById(999999L))
+                .isInstanceOf(ShowNotFoundException.class);
     }
 }

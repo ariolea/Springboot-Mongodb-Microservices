@@ -1,6 +1,7 @@
 package com.tvmaze.web;
 
 import com.tvmaze.exception.InvalidSearchQueryException;
+import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.exception.TvMazeRateLimitException;
 import com.tvmaze.exception.TvMazeUnavailableException;
 import com.tvmaze.web.dto.ApiError;
@@ -26,6 +27,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(ShowNotFoundException.class)
+    public ResponseEntity<ApiError> handleShowNotFound(ShowNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
 
     @ExceptionHandler({InvalidSearchQueryException.class, MissingServletRequestParameterException.class})
     public ResponseEntity<ApiError> handleInvalidRequest(Exception ex, HttpServletRequest request) {

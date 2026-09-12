@@ -1,5 +1,6 @@
 package com.tvmaze.web;
 
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -9,7 +10,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.tvmaze.TvMazeShowFixture;
+import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.exception.TvMazeRateLimitException;
+import com.tvmaze.exception.TvMazeUnavailableException;
 import com.tvmaze.service.ShowService;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
@@ -90,6 +94,67 @@ class ShowControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(showService, never()).searchShows(anyString());
+    }
+
+    @Test
+    @DisplayName("Un id no positivo responde 400 sin llamar a TVmaze")
+    void getShowByIdRejectsNonPositiveId() throws Exception {
+        mockMvc.perform(get("/api/v1/shows/-1"))
+                .andExpect(status().isBadRequest());
+
+        verify(showService, never()).getShowById(anyLong());
+    }
+
+    @Test
+    @DisplayName("Un id no numerico responde 400")
+    void getShowByIdRejectsNonNumericId() throws Exception {
+        mockMvc.perform(get("/api/v1/shows/abc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/shows/{id} devuelve el objeto show completo")
+    void getShowByIdReturnsCompleteShow() throws Exception {
+        when(showService.getShowById(1L)).thenReturn(TvMazeShowFixture.underTheDome());
+
+        mockMvc.perform(get("/api/v1/shows/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Under the Dome"))
+                .andExpect(jsonPath("$.type").value("Scripted"))
+                .andExpect(jsonPath("$.language").value("English"))
+                .andExpect(jsonPath("$.status").value("Ended"))
+                .andExpect(jsonPath("$.schedule.days[0]").value("Thursday"))
+                .andExpect(jsonPath("$.rating.average").value(6.6))
+                .andExpect(jsonPath("$.network.name").value("CBS"))
+                .andExpect(jsonPath("$.network.country.code").value("US"))
+                .andExpect(jsonPath("$.externals.imdb").value("tt1553656"))
+                .andExpect(jsonPath("$.image.medium").value("https://static.tvmaze.com/medium.jpg"))
+                .andExpect(jsonPath("$._links.self.href").value("https://api.tvmaze.com/shows/1"));
+    }
+
+    @Test
+    @DisplayName("Un show inexistente responde 404 con el cuerpo de error estandar")
+    void getShowByIdReturnsNotFound() throws Exception {
+        when(showService.getShowById(999999L)).thenThrow(new ShowNotFoundException(999999L));
+
+        mockMvc.perform(get("/api/v1/shows/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("No existe un show con id 999999 en TVmaze."));
+    }
+
+    @Test
+    @DisplayName("Una caida de TVmaze se reporta como 502 Bad Gateway")
+    void upstreamFailureReturnsBadGateway() throws Exception {
+        when(showService.getShowById(1L))
+                .thenThrow(new TvMazeUnavailableException("TVmaze respondio con estado 503."));
+
+        mockMvc.perform(get("/api/v1/shows/1"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.status").value(502))
+                .andExpect(jsonPath("$.message").value("TVmaze respondio con estado 503."));
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.tvmaze.client;
 
 import com.tvmaze.client.dto.TvMazeSearchResult;
 import com.tvmaze.config.CacheConfig;
+import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.exception.TvMazeRateLimitException;
 import com.tvmaze.exception.TvMazeUnavailableException;
 import java.io.IOException;
@@ -65,6 +67,40 @@ public class TvMazeClient {
                     "No fue posible contactar a TVmaze para la busqueda solicitada.", ex);
         } catch (RestClientException ex) {
             throw new TvMazeUnavailableException("Respuesta invalida de TVmaze en la busqueda de shows.", ex);
+        }
+    }
+
+    /**
+     * Obtiene el show completo por id: {@code GET /shows/{show_id}}.
+     *
+     * @param showId identificador del show en TVmaze.
+     * @return el objeto show completo.
+     * @throws ShowNotFoundException si TVmaze no conoce ese id.
+     */
+    public TvMazeShow findShowById(long showId) {
+        log.debug("Consultando TVmaze: /shows/{}", showId);
+        try {
+            TvMazeShow show = restClient.get()
+                    .uri("/shows/{showId}", showId)
+                    .retrieve()
+                    .onStatus(status -> status.value() == HttpStatus.NOT_FOUND.value(),
+                            (request, response) -> {
+                                throw new ShowNotFoundException(showId);
+                            })
+                    .onStatus(HttpStatusCode::isError, (request, response) -> handleUpstreamError(response))
+                    .body(TvMazeShow.class);
+
+            if (show == null) {
+                throw new TvMazeUnavailableException(
+                        "TVmaze devolvio una respuesta vacia para el show %d.".formatted(showId));
+            }
+            return show;
+        } catch (ResourceAccessException ex) {
+            throw new TvMazeUnavailableException(
+                    "No fue posible contactar a TVmaze para el show %d.".formatted(showId), ex);
+        } catch (RestClientException ex) {
+            throw new TvMazeUnavailableException(
+                    "Respuesta invalida de TVmaze para el show %d.".formatted(showId), ex);
         }
     }
 

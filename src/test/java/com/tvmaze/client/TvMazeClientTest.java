@@ -9,6 +9,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.tvmaze.client.dto.TvMazeSearchResult;
 import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.exception.ShowNotFoundException;
+import com.tvmaze.exception.TvMazeRateLimitException;
 import com.tvmaze.exception.TvMazeUnavailableException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,6 +92,70 @@ class TvMazeClientTest {
 
         client.searchShows("breaking bad");
 
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("La consulta por id deserializa el show completo")
+    void findShowByIdDeserializesShow() {
+        String payload = """
+                {
+                  "id": 1,
+                  "url": "https://www.tvmaze.com/shows/1/under-the-dome",
+                  "name": "Under the Dome",
+                  "type": "Scripted",
+                  "language": "English",
+                  "genres": ["Drama", "Science-Fiction", "Thriller"],
+                  "status": "Ended",
+                  "runtime": 60,
+                  "averageRuntime": 60,
+                  "premiered": "2013-06-24",
+                  "ended": "2015-09-10",
+                  "schedule": {"time": "22:00", "days": ["Thursday"]},
+                  "rating": {"average": 6.6},
+                  "weight": 100,
+                  "network": {"id": 2, "name": "CBS", "country": {"name": "United States", "code": "US", "timezone": "America/New_York"}},
+                  "externals": {"tvrage": 25988, "thetvdb": 264492, "imdb": "tt1553656"},
+                  "image": {"medium": "https://static.tvmaze.com/medium.jpg", "original": "https://static.tvmaze.com/original.jpg"},
+                  "summary": "<p>Un pueblo aislado por una cupula.</p>",
+                  "updated": 1789071819,
+                  "_links": {"self": {"href": "https://api.tvmaze.com/shows/1"}}
+                }
+                """;
+        server.expect(requestTo(BASE_URL + "/shows/1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
+
+        TvMazeShow show = client.findShowById(1L);
+
+        server.verify();
+        assertThat(show.name()).isEqualTo("Under the Dome");
+        assertThat(show.schedule().days()).containsExactly("Thursday");
+        assertThat(show.rating().average()).isEqualTo(6.6);
+        assertThat(show.externals().imdb()).isEqualTo("tt1553656");
+        assertThat(show.image().medium()).isEqualTo("https://static.tvmaze.com/medium.jpg");
+    }
+
+    @Test
+    @DisplayName("Un 404 de TVmaze se traduce a ShowNotFoundException")
+    void findShowByIdTranslatesNotFound() {
+        server.expect(requestTo(BASE_URL + "/shows/999999"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThatThrownBy(() -> client.findShowById(999999L))
+                .isInstanceOf(ShowNotFoundException.class)
+                .hasMessageContaining("999999");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("Un 429 de TVmaze se traduce a TvMazeRateLimitException")
+    void findShowByIdTranslatesRateLimit() {
+        server.expect(requestTo(BASE_URL + "/shows/1"))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+        assertThatThrownBy(() -> client.findShowById(1L))
+                .isInstanceOf(TvMazeRateLimitException.class);
         server.verify();
     }
 

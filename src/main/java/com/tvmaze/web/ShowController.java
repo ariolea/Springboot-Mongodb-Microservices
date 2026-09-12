@@ -1,5 +1,6 @@
 package com.tvmaze.web;
 
+import com.tvmaze.client.dto.TvMazeShow;
 import com.tvmaze.exception.InvalidSearchQueryException;
 import com.tvmaze.service.ShowService;
 import com.tvmaze.web.dto.ApiError;
@@ -12,11 +13,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,8 +46,7 @@ public class ShowController {
     @GetMapping("/search")
     @Operation(summary = "Buscar shows por criterio",
             description = "Consulta GET /search/shows?q={query} en TVmaze y devuelve un arreglo de shows "
-                    + "con los comentarios guardados para cada uno. "
-                    + "Atributos: id, name, channel, summary, genres y comments. "
+                    + "con los atributos id, name, channel, summary y genres. "
                     + "El criterio puede enviarse en el parametro q o en search_query.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Arreglo de shows encontrados",
@@ -71,4 +73,28 @@ public class ShowController {
         return showService.searchShows(criteria);
     }
 
+    /**
+     * Devuelve el objeto show completo a partir de su id.
+     */
+    @GetMapping("/{showId}")
+    @Operation(summary = "Obtener un show por id",
+            description = "Consulta GET /shows/{show_id} en TVmaze y devuelve el objeto show completo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Show encontrado",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = TvMazeShow.class))),
+            @ApiResponse(responseCode = "400", description = "El id no es un entero positivo",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "El show no existe en TVmaze",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "429", description = "Limite de peticiones de TVmaze excedido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "502", description = "TVmaze no esta disponible",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    public TvMazeShow getShowById(
+            @Parameter(description = "Identificador del show en TVmaze", example = "1")
+            @PathVariable @Positive(message = "El id del show debe ser un entero positivo.") long showId) {
+        return showService.getShowById(showId);
+    }
 }

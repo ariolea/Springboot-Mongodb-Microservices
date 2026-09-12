@@ -1,0 +1,21 @@
+target/
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+build/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Variables de entorno locales (contienen la cadena de conexion a MongoDB)
+.env

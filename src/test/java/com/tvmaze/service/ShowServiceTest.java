@@ -19,6 +19,7 @@ import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.persistence.document.ShowDocument;
 import com.tvmaze.persistence.repository.ShowCacheRepository;
 import com.tvmaze.web.dto.CommentSummary;
+import com.tvmaze.web.dto.ShowDetailResponse;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.time.Instant;
 import java.util.Arrays;
@@ -132,8 +133,9 @@ class ShowServiceTest {
         TvMazeShow cached = TvMazeShowFixture.underTheDome();
         when(showCacheRepository.findById(1L))
                 .thenReturn(Optional.of(new ShowDocument(1L, cached, Instant.now())));
+        when(commentService.findCommentsOf(1L)).thenReturn(List.of());
 
-        assertThat(showService.getShowById(1L)).isSameAs(cached);
+        assertThat(showService.getShowById(1L).show()).isSameAs(cached);
 
         verifyNoInteractions(tvMazeClient);
         verify(showCacheRepository, never()).save(any());
@@ -145,8 +147,9 @@ class ShowServiceTest {
         TvMazeShow show = TvMazeShowFixture.underTheDome();
         when(showCacheRepository.findById(1L)).thenReturn(Optional.empty());
         when(tvMazeClient.findShowById(1L)).thenReturn(show);
+        when(commentService.findCommentsOf(1L)).thenReturn(List.of());
 
-        assertThat(showService.getShowById(1L)).isSameAs(show);
+        assertThat(showService.getShowById(1L).show()).isSameAs(show);
 
         ArgumentCaptor<ShowDocument> captor = ArgumentCaptor.forClass(ShowDocument.class);
         verify(showCacheRepository).save(captor.capture());
@@ -154,6 +157,19 @@ class ShowServiceTest {
         assertThat(saved.id()).isEqualTo(1L);
         assertThat(saved.show()).isSameAs(show);
         assertThat(saved.cachedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("El show por id incluye sus comentarios")
+    void getShowByIdAttachesComments() {
+        when(showCacheRepository.findById(1L)).thenReturn(
+                Optional.of(new ShowDocument(1L, TvMazeShowFixture.underTheDome(), Instant.now())));
+        when(commentService.findCommentsOf(1L))
+                .thenReturn(List.of(new CommentSummary("Muy buena.", 5)));
+
+        ShowDetailResponse response = showService.getShowById(1L);
+
+        assertThat(response.comments()).containsExactly(new CommentSummary("Muy buena.", 5));
     }
 
     @Test

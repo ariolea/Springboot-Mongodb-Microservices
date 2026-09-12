@@ -16,6 +16,7 @@ import com.tvmaze.exception.TvMazeRateLimitException;
 import com.tvmaze.exception.TvMazeUnavailableException;
 import com.tvmaze.service.ShowService;
 import com.tvmaze.web.dto.CommentSummary;
+import com.tvmaze.web.dto.ShowDetailResponse;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -121,7 +122,8 @@ class ShowControllerTest {
     @Test
     @DisplayName("GET /api/v1/shows/{id} devuelve el objeto show completo")
     void getShowByIdReturnsCompleteShow() throws Exception {
-        when(showService.getShowById(1L)).thenReturn(TvMazeShowFixture.underTheDome());
+        when(showService.getShowById(1L)).thenReturn(new ShowDetailResponse(
+                TvMazeShowFixture.underTheDome(), List.of(new CommentSummary("Muy buena.", 5))));
 
         mockMvc.perform(get("/api/v1/shows/1"))
                 .andExpect(status().isOk())
@@ -136,7 +138,10 @@ class ShowControllerTest {
                 .andExpect(jsonPath("$.network.country.code").value("US"))
                 .andExpect(jsonPath("$.externals.imdb").value("tt1553656"))
                 .andExpect(jsonPath("$.image.medium").value("https://static.tvmaze.com/medium.jpg"))
-                .andExpect(jsonPath("$._links.self.href").value("https://api.tvmaze.com/shows/1"));
+                .andExpect(jsonPath("$._links.self.href").value("https://api.tvmaze.com/shows/1"))
+                .andExpect(jsonPath("$.comments.length()").value(1))
+                .andExpect(jsonPath("$.comments[0].comment").value("Muy buena."))
+                .andExpect(jsonPath("$.comments[0].rating").value(5));
     }
 
     @Test

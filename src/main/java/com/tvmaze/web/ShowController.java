@@ -1,6 +1,6 @@
 package com.tvmaze.web;
 
-import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.web.dto.ShowDetailResponse;
 import com.tvmaze.exception.InvalidSearchQueryException;
 import com.tvmaze.service.ShowService;
 import com.tvmaze.web.dto.ApiError;
@@ -46,7 +46,8 @@ public class ShowController {
     @GetMapping("/search")
     @Operation(summary = "Buscar shows por criterio",
             description = "Consulta GET /search/shows?q={query} en TVmaze y devuelve un arreglo de shows "
-                    + "con los atributos id, name, channel, summary y genres. "
+                    + "con los comentarios guardados para cada uno. "
+                    + "Atributos: id, name, channel, summary, genres y comments. "
                     + "El criterio puede enviarse en el parametro q o en search_query.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Arreglo de shows encontrados",
@@ -78,11 +79,13 @@ public class ShowController {
      */
     @GetMapping("/{showId}")
     @Operation(summary = "Obtener un show por id",
-            description = "Consulta GET /shows/{show_id} en TVmaze y devuelve el objeto show completo.")
+            description = "Devuelve el objeto show completo con un arreglo comments. Antes de consumir el API "
+                    + "valida la cache en MongoDB: si el id ya esta registrado responde desde ahi; si no, "
+                    + "consulta GET /shows/{show_id} en TVmaze y guarda el resultado antes de responder.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Show encontrado",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = TvMazeShow.class))),
+                            schema = @Schema(implementation = ShowDetailResponse.class))),
             @ApiResponse(responseCode = "400", description = "El id no es un entero positivo",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "El show no existe en TVmaze",
@@ -92,7 +95,7 @@ public class ShowController {
             @ApiResponse(responseCode = "502", description = "TVmaze no esta disponible",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
-    public TvMazeShow getShowById(
+    public ShowDetailResponse getShowById(
             @Parameter(description = "Identificador del show en TVmaze", example = "1")
             @PathVariable @Positive(message = "El id del show debe ser un entero positivo.") long showId) {
         return showService.getShowById(showId);

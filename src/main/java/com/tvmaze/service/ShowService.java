@@ -6,6 +6,7 @@ import com.tvmaze.client.dto.TvMazeShow;
 import com.tvmaze.persistence.document.ShowDocument;
 import com.tvmaze.persistence.repository.ShowCacheRepository;
 import com.tvmaze.web.dto.CommentSummary;
+import com.tvmaze.web.dto.ShowDetailResponse;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Casos de uso del middleware: buscar shows por criterio y consultar un show por id.
- * La busqueda incluye los comentarios guardados en MongoDB para cada show.
+ * En ambos casos la respuesta incluye los comentarios guardados en MongoDB.
  */
 @Service
 public class ShowService {
@@ -62,13 +63,17 @@ public class ShowService {
     }
 
     /**
-     * Devuelve el objeto show completo, usando MongoDB como cache del API de TVmaze:
-     * si el id ya esta registrado se responde desde la base y no se consume el API;
-     * si no, se consulta TVmaze y el resultado se guarda antes de responder.
+     * Devuelve el objeto show completo con sus comentarios, usando MongoDB como cache del
+     * API de TVmaze: si el id ya esta registrado se responde desde la base y no se consume
+     * el API; si no, se consulta TVmaze y el resultado se guarda antes de responder.
      *
      * @param showId identificador del show.
      */
-    public TvMazeShow getShowById(long showId) {
+    public ShowDetailResponse getShowById(long showId) {
+        return new ShowDetailResponse(findShow(showId), commentService.findCommentsOf(showId));
+    }
+
+    private TvMazeShow findShow(long showId) {
         Optional<ShowDocument> cached = showCacheRepository.findById(showId);
         if (cached.isPresent()) {
             log.info("Show {} servido desde la cache de MongoDB.", showId);

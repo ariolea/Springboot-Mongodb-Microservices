@@ -79,7 +79,8 @@ curl "http://localhost:8080/api/v1/shows/search?q=girls"
 GET /api/v1/shows/{show_id}
 ```
 
-Devuelve el objeto show completo. Antes de consumir el API valida la cache en MongoDB
+Devuelve el objeto show completo, con el arreglo `comments` agregado al mismo nivel que el
+resto de sus campos. Antes de consumir el API valida la cache en MongoDB
 (ver [MongoDB](#mongodb)); solo si el id no esta registrado consulta
 `https://api.tvmaze.com/shows/{show_id}` y guarda el resultado.
 
@@ -102,7 +103,10 @@ curl "http://localhost:8080/api/v1/shows/1"
   "network": { "id": 2, "name": "CBS", "country": { "name": "United States", "code": "US", "timezone": "America/New_York" } },
   "externals": { "tvrage": 25988, "thetvdb": 264492, "imdb": "tt1553656" },
   "summary": "<p><b>Under the Dome</b> is the story of a small town...</p>",
-  "_links": { "self": { "href": "https://api.tvmaze.com/shows/1" } }
+  "_links": { "self": { "href": "https://api.tvmaze.com/shows/1" } },
+  "comments": [
+    { "comment": "Muy buena.", "rating": 5 }
+  ]
 }
 ```
 

@@ -34,6 +34,60 @@ La aplicacion queda disponible en `http://localhost:8080`.
 ./mvnw test
 ```
 
+## Endpoints
+
+### Buscar shows por criterio
+
+```
+GET /api/v1/shows/search?q={search_query}
+```
+
+Consulta `http://api.tvmaze.com/search/shows?q=query` y devuelve un arreglo de shows con
+`id`, `name`, `channel`, `summary` y `genres`. El criterio se acepta tanto en `q` como en
+`search_query`.
+
+```bash
+curl "http://localhost:8080/api/v1/shows/search?q=girls"
+```
+
+```json
+[
+  {
+    "id": 139,
+    "name": "Girls",
+    "channel": "HBO",
+    "summary": "<p>This Emmy winning series is a comic look at the assorted humiliations and rare triumphs of a group of girls in their 20s.</p>",
+    "genres": ["Drama", "Romance"]
+  }
+]
+```
+
+- `channel` resuelve al nombre de la cadena (`network.name`) y, cuando el show solo existe en
+  streaming, al de la plataforma (`webChannel.name`). Es `null` si TVmaze no reporta ninguno.
+- `summary` se entrega tal como lo publica TVmaze, incluyendo sus etiquetas HTML.
+- Una busqueda sin coincidencias devuelve `200 OK` con un arreglo vacio.
+
+## Manejo de errores
+
+Todos los errores comparten el mismo cuerpo:
+
+```json
+{
+  "timestamp": "2026-09-12T10:15:30.123-06:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "El criterio de busqueda es obligatorio. Envielo en el parametro q o search_query.",
+  "path": "/api/v1/shows/search"
+}
+```
+
+| Codigo | Cuando ocurre |
+| ------ | ------------- |
+| `400 Bad Request` | Criterio de busqueda ausente o vacio. |
+| `429 Too Many Requests` | TVmaze rechazo la peticion por su limite de solicitudes. |
+| `502 Bad Gateway` | TVmaze respondio con error 5xx, agoto el timeout o devolvio un cuerpo invalido. |
+| `500 Internal Server Error` | Falla inesperada del middleware. |
+
 ## Configuracion
 
 Valores en `src/main/resources/application.yml`, sobreescribibles por variable de entorno:

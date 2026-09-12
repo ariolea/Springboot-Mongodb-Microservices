@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tvmaze.client.TvMazeClient;
 import com.tvmaze.config.TvMazeProperties;
+import com.tvmaze.persistence.repository.ShowCacheRepository;
 import com.tvmaze.web.ShowController;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
@@ -14,8 +15,11 @@ import org.springframework.cache.CacheManager;
 
 /**
  * El contexto levanta completo y la configuracion se enlaza como se espera.
+ *
+ * <p>La creacion automatica de indices se desactiva aqui porque exigiria una
+ * conexion real a MongoDB durante el arranque del contexto de prueba.
  */
-@SpringBootTest
+@SpringBootTest(properties = "spring.data.mongodb.auto-index-creation=false")
 class TvMazeMiddlewareApplicationTests {
 
     @Autowired
@@ -23,6 +27,9 @@ class TvMazeMiddlewareApplicationTests {
 
     @Autowired
     private TvMazeClient tvMazeClient;
+
+    @Autowired
+    private ShowCacheRepository showCacheRepository;
 
     @Autowired
     private CacheManager cacheManager;
@@ -35,6 +42,7 @@ class TvMazeMiddlewareApplicationTests {
     void contextLoads() {
         assertThat(showController).isNotNull();
         assertThat(tvMazeClient).isNotNull();
+        assertThat(showCacheRepository).isNotNull();
         assertThat(cacheManager.getCacheNames()).containsExactly("showSearch");
     }
 

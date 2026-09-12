@@ -73,7 +73,9 @@ curl "http://localhost:8080/api/v1/shows/search?q=girls"
 GET /api/v1/shows/{show_id}
 ```
 
-Consulta `https://api.tvmaze.com/shows/{show_id}` y devuelve el objeto show completo.
+Devuelve el objeto show completo. Antes de consumir el API valida la cache en MongoDB
+(ver [MongoDB](#mongodb)); solo si el id no esta registrado consulta
+`https://api.tvmaze.com/shows/{show_id}` y guarda el resultado.
 
 ```bash
 curl "http://localhost:8080/api/v1/shows/1"
@@ -98,6 +100,54 @@ curl "http://localhost:8080/api/v1/shows/1"
 }
 ```
 
+## MongoDB
+
+La consulta de un show usa MongoDB como cache del API de TVmaze. En cada peticion:
+
+1. Se busca el documento con `_id = show_id` en la coleccion `shows`.
+2. **Si existe**, se devuelve ese objeto y **no se consume el API de TVmaze**.
+3. **Si no existe**, se consulta TVmaze, el resultado se guarda en `shows` y despues se responde.
+
+La respuesta es identica en ambos casos, y el log distingue el camino tomado
+(`recuperado de TVmaze y guardado en MongoDB` frente a `servido desde la cache de MongoDB`).
+
+Documento de la coleccion `shows`:
+
+```json
+{
+  "_id": 1,
+  "show": { "id": 1, "name": "Under the Dome", "...": "objeto completo de TVmaze" },
+  "cachedAt": "2026-09-12T10:15:30.123Z"
+}
+```
+
+El `_id` del documento es el id del show, de modo que la cache se consulta por clave primaria
+y no puede haber duplicados.
+
+### Conexion
+
+Se configura con la variable `MONGODB_URI`; sin ella se usa
+`mongodb://localhost:27017/tvmaze_middleware`. Para MongoDB Atlas:
+
+1. **Database Access**: crea un usuario con rol *Read and write to any database*.
+2. **Network Access**: agrega tu IP (o `0.0.0.0/0` para una demo).
+3. **Connect → Drivers**: copia la cadena `mongodb+srv://...` y agregale el nombre de la base.
+
+```bash
+# Windows (PowerShell)
+$env:MONGODB_URI = "mongodb+srv://usuario:password@cluster0.xxxxx.mongodb.net/tvmaze_middleware?retryWrites=true&w=majority"
+
+# Linux / macOS
+export MONGODB_URI="mongodb+srv://usuario:password@cluster0.xxxxx.mongodb.net/tvmaze_middleware?retryWrites=true&w=majority"
+```
+
+Tambien se puede copiar `.env.example` a `.env`, que esta en `.gitignore`: la cadena de
+conexion nunca se escribe en el repositorio.
+
+La aplicacion arranca aunque MongoDB no responda. Las operaciones que necesitan la base
+devuelven `503` en unos segundos (`MongoConfig` baja a 5 s la espera del driver, que por
+defecto es de 30) y la busqueda de shows, que no toca Mongo, sigue funcionando.
+
 ## Manejo de errores
 
 Todos los errores comparten el mismo cuerpo:
@@ -118,6 +168,7 @@ Todos los errores comparten el mismo cuerpo:
 | `404 Not Found` | TVmaze no conoce el `show_id` solicitado. |
 | `429 Too Many Requests` | TVmaze rechazo la peticion por su limite de solicitudes. |
 | `502 Bad Gateway` | TVmaze respondio con error 5xx, agoto el timeout o devolvio un cuerpo invalido. |
+| `503 Service Unavailable` | MongoDB no esta disponible o rechazo la operacion. |
 | `500 Internal Server Error` | Falla inesperada del middleware. |
 
 ## Configuracion

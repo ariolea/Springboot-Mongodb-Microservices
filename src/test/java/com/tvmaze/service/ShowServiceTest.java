@@ -2,33 +2,44 @@ package com.tvmaze.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.tvmaze.TvMazeShowFixture;
 import com.tvmaze.client.TvMazeClient;
 import com.tvmaze.client.dto.TvMazeSearchResult;
 import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.persistence.document.ShowDocument;
+import com.tvmaze.persistence.repository.ShowCacheRepository;
 import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.web.dto.ShowSearchResponse;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Casos de uso del middleware, aislados de la red.
+ * Casos de uso del middleware, aislados de la red y de MongoDB.
  */
 @ExtendWith(MockitoExtension.class)
 class ShowServiceTest {
 
     @Mock
     private TvMazeClient tvMazeClient;
+
+    @Mock
+    private ShowCacheRepository showCacheRepository;
 
     @InjectMocks
     private ShowService showService;
@@ -71,21 +82,46 @@ class ShowServiceTest {
         assertThat(showService.searchShows("dome")).hasSize(1);
     }
 
-    @Test
-    @DisplayName("La consulta por id devuelve el show completo sin transformarlo")
-    void getShowByIdReturnsCompleteShow() {
-        TvMazeShow expected = TvMazeShowFixture.underTheDome();
-        when(tvMazeClient.findShowById(1L)).thenReturn(expected);
 
-        assertThat(showService.getShowById(1L)).isSameAs(expected);
+    @Test
+    @DisplayName("Si el show ya esta en MongoDB se responde desde ahi y no se consume TVmaze")
+    void getShowByIdServesFromMongoCache() {
+        TvMazeShow cached = TvMazeShowFixture.underTheDome();
+        when(showCacheRepository.findById(1L))
+                .thenReturn(Optional.of(new ShowDocument(1L, cached, Instant.now())));
+
+        assertThat(showService.getShowById(1L)).isSameAs(cached);
+
+        verifyNoInteractions(tvMazeClient);
+        verify(showCacheRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Un show inexistente propaga ShowNotFoundException")
+    @DisplayName("Si el show no esta en MongoDB se consulta TVmaze y se guarda antes de responder")
+    void getShowByIdFallsBackToTvMazeAndPersists() {
+        TvMazeShow show = TvMazeShowFixture.underTheDome();
+        when(showCacheRepository.findById(1L)).thenReturn(Optional.empty());
+        when(tvMazeClient.findShowById(1L)).thenReturn(show);
+
+        assertThat(showService.getShowById(1L)).isSameAs(show);
+
+        ArgumentCaptor<ShowDocument> captor = ArgumentCaptor.forClass(ShowDocument.class);
+        verify(showCacheRepository).save(captor.capture());
+        ShowDocument saved = captor.getValue();
+        assertThat(saved.id()).isEqualTo(1L);
+        assertThat(saved.show()).isSameAs(show);
+        assertThat(saved.cachedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Un show inexistente propaga ShowNotFoundException y no se guarda nada")
     void getShowByIdPropagatesNotFound() {
+        when(showCacheRepository.findById(999999L)).thenReturn(Optional.empty());
         when(tvMazeClient.findShowById(999999L)).thenThrow(new ShowNotFoundException(999999L));
 
         assertThatThrownBy(() -> showService.getShowById(999999L))
                 .isInstanceOf(ShowNotFoundException.class);
+
+        verify(showCacheRepository, never()).save(any());
     }
 }

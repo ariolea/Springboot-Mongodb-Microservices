@@ -3,6 +3,10 @@ spring:
     name: tvmaze-middleware
   jackson:
     default-property-inclusion: always
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/tvmaze_middleware}
+      auto-index-creation: true
 
 server:
   port: ${SERVER_PORT:8080}

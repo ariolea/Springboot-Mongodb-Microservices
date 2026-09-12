@@ -43,8 +43,8 @@ GET /api/v1/shows/search?q={search_query}
 ```
 
 Consulta `http://api.tvmaze.com/search/shows?q=query` y devuelve un arreglo de shows con
-`id`, `name`, `channel`, `summary` y `genres`. El criterio se acepta tanto en `q` como en
-`search_query`.
+`id`, `name`, `channel`, `summary`, `genres` y el arreglo `comments` guardado para cada show.
+El criterio se acepta tanto en `q` como en `search_query`.
 
 ```bash
 curl "http://localhost:8080/api/v1/shows/search?q=girls"
@@ -57,7 +57,11 @@ curl "http://localhost:8080/api/v1/shows/search?q=girls"
     "name": "Girls",
     "channel": "HBO",
     "summary": "<p>This Emmy winning series is a comic look at the assorted humiliations and rare triumphs of a group of girls in their 20s.</p>",
-    "genres": ["Drama", "Romance"]
+    "genres": ["Drama", "Romance"],
+    "comments": [
+      { "comment": "Muy buena.", "rating": 5 },
+      { "comment": "Se cae al final.", "rating": 2 }
+    ]
   }
 ]
 ```
@@ -65,6 +69,8 @@ curl "http://localhost:8080/api/v1/shows/search?q=girls"
 - `channel` resuelve al nombre de la cadena (`network.name`) y, cuando el show solo existe en
   streaming, al de la plataforma (`webChannel.name`). Es `null` si TVmaze no reporta ninguno.
 - `summary` se entrega tal como lo publica TVmaze, incluyendo sus etiquetas HTML.
+- `comments` trae los comentarios guardados para ese show; es un arreglo vacio si no hay.
+  Los comentarios de todos los shows del resultado se resuelven en una sola consulta a MongoDB.
 - Una busqueda sin coincidencias devuelve `200 OK` con un arreglo vacio.
 
 ### Obtener un show por id

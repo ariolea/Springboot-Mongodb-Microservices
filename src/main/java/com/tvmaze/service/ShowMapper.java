@@ -1,6 +1,7 @@
 package com.tvmaze.service;
 
 import com.tvmaze.client.dto.TvMazeShow;
+import com.tvmaze.web.dto.CommentSummary;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
 import org.springframework.util.StringUtils;
@@ -14,16 +15,17 @@ public final class ShowMapper {
     }
 
     /**
-     * Reduce un show de TVmaze a los atributos solicitados por el endpoint
-     * de busqueda.
+     * Reduce un show de TVmaze a los atributos solicitados por el endpoint de busqueda
+     * y le agrega los comentarios guardados para ese show.
      */
-    public static ShowSearchResponse toSearchResponse(TvMazeShow show) {
+    public static ShowSearchResponse toSearchResponse(TvMazeShow show, List<CommentSummary> comments) {
         return new ShowSearchResponse(
                 show.id(),
                 show.name(),
                 resolveChannel(show),
                 show.summary(),
-                show.genres() != null ? List.copyOf(show.genres()) : List.of());
+                show.genres() != null ? List.copyOf(show.genres()) : List.of(),
+                comments != null ? List.copyOf(comments) : List.of());
     }
 
     /**

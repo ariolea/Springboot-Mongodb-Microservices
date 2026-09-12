@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.tvmaze.client.dto.TvMazeNetwork;
 import com.tvmaze.client.dto.TvMazeShow;
 import com.tvmaze.client.dto.TvMazeWebChannel;
+import com.tvmaze.web.dto.CommentSummary;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +24,7 @@ class ShowMapperTest {
                 new TvMazeWebChannel(1L, "HBO Max", null, null),
                 List.of("Drama"));
 
-        ShowSearchResponse response = ShowMapper.toSearchResponse(show);
+        ShowSearchResponse response = ShowMapper.toSearchResponse(show, List.of());
 
         assertThat(response.channel()).isEqualTo("HBO");
         assertThat(response.id()).isEqualTo(139L);
@@ -37,7 +38,7 @@ class ShowMapperTest {
     void channelFallsBackToWebChannel() {
         TvMazeShow show = show(null, new TvMazeWebChannel(1L, "Netflix", null, null), List.of("Drama"));
 
-        assertThat(ShowMapper.toSearchResponse(show).channel()).isEqualTo("Netflix");
+        assertThat(ShowMapper.toSearchResponse(show, List.of()).channel()).isEqualTo("Netflix");
     }
 
     @Test
@@ -45,7 +46,7 @@ class ShowMapperTest {
     void channelIsNullWhenNoSource() {
         TvMazeShow show = show(null, null, List.of("Drama"));
 
-        assertThat(ShowMapper.toSearchResponse(show).channel()).isNull();
+        assertThat(ShowMapper.toSearchResponse(show, List.of()).channel()).isNull();
     }
 
     @Test
@@ -56,7 +57,7 @@ class ShowMapperTest {
                 new TvMazeWebChannel(1L, "Disney+", null, null),
                 List.of());
 
-        assertThat(ShowMapper.toSearchResponse(show).channel()).isEqualTo("Disney+");
+        assertThat(ShowMapper.toSearchResponse(show, List.of()).channel()).isEqualTo("Disney+");
     }
 
     @Test
@@ -64,7 +65,29 @@ class ShowMapperTest {
     void nullGenresBecomeEmptyList() {
         TvMazeShow show = show(new TvMazeNetwork(8L, "HBO", null, null), null, null);
 
-        assertThat(ShowMapper.toSearchResponse(show).genres()).isEmpty();
+        assertThat(ShowMapper.toSearchResponse(show, List.of()).genres()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Los comentarios recibidos se agregan al show proyectado")
+    void commentsAreAttachedToTheShow() {
+        TvMazeShow show = show(new TvMazeNetwork(8L, "HBO", null, null), null, List.of("Drama"));
+        List<CommentSummary> comments = List.of(
+                new CommentSummary("Muy buena.", 5),
+                new CommentSummary("Se cae al final.", 2));
+
+        ShowSearchResponse response = ShowMapper.toSearchResponse(show, comments);
+
+        assertThat(response.comments()).containsExactlyElementsOf(comments);
+    }
+
+    @Test
+    @DisplayName("Un show sin comentarios expone un arreglo vacio, nunca nulo")
+    void missingCommentsBecomeEmptyList() {
+        TvMazeShow show = show(new TvMazeNetwork(8L, "HBO", null, null), null, List.of("Drama"));
+
+        assertThat(ShowMapper.toSearchResponse(show, null).comments()).isEmpty();
+        assertThat(ShowMapper.toSearchResponse(show, List.of()).comments()).isEmpty();
     }
 
     private static TvMazeShow show(TvMazeNetwork network, TvMazeWebChannel webChannel, List<String> genres) {

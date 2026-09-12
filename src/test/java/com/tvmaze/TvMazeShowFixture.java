@@ -19,6 +19,12 @@ public final class TvMazeShowFixture {
     private TvMazeShowFixture() {
     }
 
+    /** Show minimo con id y nombre, para pruebas que solo necesitan distinguirlos. */
+    public static TvMazeShow withId(long id, String name) {
+        return new TvMazeShow(id, null, name, null, null, List.of(), null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null);
+    }
+
     /** Show completo equivalente a la respuesta real de /shows/1. */
     public static TvMazeShow underTheDome() {
         return new TvMazeShow(

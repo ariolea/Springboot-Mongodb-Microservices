@@ -15,6 +15,7 @@ import com.tvmaze.exception.ShowNotFoundException;
 import com.tvmaze.exception.TvMazeRateLimitException;
 import com.tvmaze.exception.TvMazeUnavailableException;
 import com.tvmaze.service.ShowService;
+import com.tvmaze.web.dto.CommentSummary;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +42,8 @@ class ShowControllerTest {
     void searchReturnsProjectedShows() throws Exception {
         when(showService.searchShows("dome")).thenReturn(List.of(
                 new ShowSearchResponse(1L, "Under the Dome", "CBS", "<p>Sinopsis.</p>",
-                        List.of("Drama", "Thriller"))));
+                        List.of("Drama", "Thriller"),
+                        List.of(new CommentSummary("Muy buena.", 5), new CommentSummary("Regular.", 3)))));
 
         mockMvc.perform(get("/api/v1/shows/search").param("q", "dome"))
                 .andExpect(status().isOk())
@@ -51,7 +53,11 @@ class ShowControllerTest {
                 .andExpect(jsonPath("$[0].channel").value("CBS"))
                 .andExpect(jsonPath("$[0].summary").value("<p>Sinopsis.</p>"))
                 .andExpect(jsonPath("$[0].genres[0]").value("Drama"))
-                .andExpect(jsonPath("$[0].genres[1]").value("Thriller"));
+                .andExpect(jsonPath("$[0].genres[1]").value("Thriller"))
+                .andExpect(jsonPath("$[0].comments.length()").value(2))
+                .andExpect(jsonPath("$[0].comments[0].comment").value("Muy buena."))
+                .andExpect(jsonPath("$[0].comments[0].rating").value(5))
+                .andExpect(jsonPath("$[0].comments[1].rating").value(3));
     }
 
     @Test

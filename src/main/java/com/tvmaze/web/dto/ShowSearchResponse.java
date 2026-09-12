@@ -1,5 +1,6 @@
 package com.tvmaze.web.dto;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
@@ -12,6 +13,7 @@ import java.util.List;
  *                 plataforma de streaming ({@code webChannel}).
  * @param summary  sinopsis del show, tal como la publica TVmaze (incluye etiquetas HTML).
  * @param genres   generos asociados al show; lista vacia si TVmaze no reporta ninguno.
+ * @param comments comentarios guardados en MongoDB para ese show; lista vacia si no hay.
  */
 @Schema(name = "ShowSearchResult", description = "Show encontrado a partir del criterio de busqueda")
 public record ShowSearchResponse(
@@ -29,5 +31,9 @@ public record ShowSearchResponse(
         String summary,
 
         @Schema(description = "Generos del show", example = "[\"Drama\",\"Romance\"]")
-        List<String> genres) {
+        List<String> genres,
+
+        @ArraySchema(schema = @Schema(implementation = CommentSummary.class),
+                arraySchema = @Schema(description = "Comentarios guardados para el show"))
+        List<CommentSummary> comments) {
 }

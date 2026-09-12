@@ -5,8 +5,10 @@ import com.tvmaze.client.dto.TvMazeSearchResult;
 import com.tvmaze.client.dto.TvMazeShow;
 import com.tvmaze.persistence.document.ShowDocument;
 import com.tvmaze.persistence.repository.ShowCacheRepository;
+import com.tvmaze.web.dto.CommentSummary;
 import com.tvmaze.web.dto.ShowSearchResponse;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Casos de uso del middleware: buscar shows por criterio y consultar un show por id.
+ * La busqueda incluye los comentarios guardados en MongoDB para cada show.
  */
 @Service
 public class ShowService {
@@ -23,26 +26,39 @@ public class ShowService {
 
     private final TvMazeClient tvMazeClient;
     private final ShowCacheRepository showCacheRepository;
+    private final CommentService commentService;
 
-    public ShowService(TvMazeClient tvMazeClient, ShowCacheRepository showCacheRepository) {
+    public ShowService(TvMazeClient tvMazeClient,
+                       ShowCacheRepository showCacheRepository,
+                       CommentService commentService) {
         this.tvMazeClient = tvMazeClient;
         this.showCacheRepository = showCacheRepository;
+        this.commentService = commentService;
     }
 
     /**
-     * Busca shows en TVmaze y devuelve unicamente los atributos del contrato publico.
+     * Busca shows en TVmaze, proyecta los atributos del contrato publico y agrega a cada
+     * uno sus comentarios guardados.
      *
      * @param searchQuery criterio de busqueda.
      * @return arreglo de shows; vacio si no hubo coincidencias.
      */
     public List<ShowSearchResponse> searchShows(String searchQuery) {
-        List<ShowSearchResponse> shows = tvMazeClient.searchShows(searchQuery.trim()).stream()
+        List<TvMazeShow> shows = tvMazeClient.searchShows(searchQuery.trim()).stream()
                 .map(TvMazeSearchResult::show)
                 .filter(Objects::nonNull)
-                .map(ShowMapper::toSearchResponse)
                 .toList();
-        log.info("Busqueda '{}' resolvio {} show(s).", searchQuery, shows.size());
-        return shows;
+
+        List<Long> showIds = shows.stream().map(TvMazeShow::id).filter(Objects::nonNull).toList();
+        Map<Long, List<CommentSummary>> commentsByShow = commentService.findCommentsOf(showIds);
+
+        List<ShowSearchResponse> response = shows.stream()
+                .map(show -> ShowMapper.toSearchResponse(
+                        show, commentsByShow.getOrDefault(show.id(), List.of())))
+                .toList();
+
+        log.info("Busqueda '{}' resolvio {} show(s).", searchQuery, response.size());
+        return response;
     }
 
     /**

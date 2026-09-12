@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tvmaze.client.TvMazeClient;
 import com.tvmaze.config.TvMazeProperties;
+import com.tvmaze.persistence.repository.CommentRepository;
 import com.tvmaze.persistence.repository.ShowCacheRepository;
+import com.tvmaze.web.CommentController;
 import com.tvmaze.web.ShowController;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
@@ -26,10 +28,16 @@ class TvMazeMiddlewareApplicationTests {
     private ShowController showController;
 
     @Autowired
+    private CommentController commentController;
+
+    @Autowired
     private TvMazeClient tvMazeClient;
 
     @Autowired
     private ShowCacheRepository showCacheRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private CacheManager cacheManager;
@@ -41,8 +49,10 @@ class TvMazeMiddlewareApplicationTests {
     @DisplayName("El contexto de la aplicacion carga con todos sus componentes")
     void contextLoads() {
         assertThat(showController).isNotNull();
+        assertThat(commentController).isNotNull();
         assertThat(tvMazeClient).isNotNull();
         assertThat(showCacheRepository).isNotNull();
+        assertThat(commentRepository).isNotNull();
         assertThat(cacheManager.getCacheNames()).containsExactly("showSearch");
     }
 

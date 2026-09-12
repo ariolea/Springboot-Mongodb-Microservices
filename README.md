@@ -100,6 +100,40 @@ curl "http://localhost:8080/api/v1/shows/1"
 }
 ```
 
+### Registrar una calificacion y un comentario
+
+```
+POST /api/v1/comments
+```
+
+Guarda en la coleccion `comments` de MongoDB un comentario ligado al id del show y devuelve
+el estado de la peticion.
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/comments" \
+  -H "Content-Type: application/json" \
+  -d '{"show_id": 1, "comment": "Excelente serie, el final se siente apresurado.", "rating": 4}'
+```
+
+Respuesta `201 Created`:
+
+```json
+{
+  "status": 201,
+  "message": "Comentario registrado para el show 1.",
+  "comment_id": "6706f1c0a2e4b0a1c2d3e4f5",
+  "show_id": 1,
+  "rating": 4,
+  "created_at": "2026-09-12T10:15:30.123Z"
+}
+```
+
+- `show_id` tambien se acepta como `showId`.
+- `rating` debe ser un entero entre 0 y 5; fuera de ese rango la peticion responde `400` con el
+  motivo exacto y no se escribe nada en la base.
+- El comentario se guarda aunque el show todavia no este en la cache: el registro no depende de
+  la disponibilidad de TVmaze.
+
 ## MongoDB
 
 La consulta de un show usa MongoDB como cache del API de TVmaze. En cada peticion:
@@ -123,6 +157,18 @@ Documento de la coleccion `shows`:
 
 El `_id` del documento es el id del show, de modo que la cache se consulta por clave primaria
 y no puede haber duplicados.
+
+Documento de la coleccion `comments`:
+
+```json
+{
+  "_id": "6706f1c0a2e4b0a1c2d3e4f5",
+  "showId": 1,
+  "comment": "Excelente serie, el final se siente apresurado.",
+  "rating": 4,
+  "createdAt": "2026-09-12T10:15:30.123Z"
+}
+```
 
 ### Conexion
 
@@ -164,7 +210,7 @@ Todos los errores comparten el mismo cuerpo:
 
 | Codigo | Cuando ocurre |
 | ------ | ------------- |
-| `400 Bad Request` | Criterio de busqueda ausente o vacio; id de show no numerico o no positivo. |
+| `400 Bad Request` | Criterio de busqueda ausente o vacio; id de show no numerico o no positivo; comentario sin `show_id`/`comment`, con `rating` fuera de 0-5 o con JSON malformado. |
 | `404 Not Found` | TVmaze no conoce el `show_id` solicitado. |
 | `429 Too Many Requests` | TVmaze rechazo la peticion por su limite de solicitudes. |
 | `502 Bad Gateway` | TVmaze respondio con error 5xx, agoto el timeout o devolvio un cuerpo invalido. |

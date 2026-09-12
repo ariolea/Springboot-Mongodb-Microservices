@@ -9,11 +9,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -63,6 +68,35 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnavailable(TvMazeUnavailableException ex, HttpServletRequest request) {
         log.error("Falla al consumir TVmaze: {}", ex.getMessage(), ex);
         return build(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
+    /**
+     * Excepciones de Spring que ya traen su propio estado (validacion de parametros
+     * de metodo, rutas inexistentes): se respeta ese estado en lugar de degradarlas a 500.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleBodyValidation(MethodArgumentNotValidException ex,
+                                                        HttpServletRequest request) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" "));
+        return build(HttpStatus.BAD_REQUEST, message.isBlank() ? "Peticion invalida." : message, request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex,
+                                                        HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "El cuerpo de la peticion no es un JSON valido o no se pudo interpretar.", request);
+    }
+
+    /** MongoDB no esta disponible o rechazo la operacion. */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ApiError> handleDataAccess(DataAccessException ex, HttpServletRequest request) {
+        log.error("Falla al acceder a MongoDB: {}", ex.getMessage(), ex);
+        return build(HttpStatus.SERVICE_UNAVAILABLE,
+                "No fue posible acceder a la base de datos en este momento.", request);
     }
 
     @ExceptionHandler(ResponseStatusException.class)
